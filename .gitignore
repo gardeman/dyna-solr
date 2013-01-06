@@ -1,0 +1,9 @@
+*.pyc
+*~
+*.idea
+*.orig
+.DS_Store
+.settings
+.project
+.pydevproject
+*.egg-info

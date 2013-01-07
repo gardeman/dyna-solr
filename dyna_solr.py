@@ -286,7 +286,12 @@ class Query(dict):
 
     def add(self, *data):
         Doc = self.document_class
-        solr.index.add([Doc(d) for d in data])
+        docs = []
+        for d in data:
+            if isinstance(d, dict):
+                d = Doc(d)
+            docs.append(d)
+        solr.index.add(docs)
 
 
 def dig_bases(*bases):
@@ -422,7 +427,7 @@ class Document(dict):
     doc_type = CharField()
     docs = Query()  # Placeholder set by metaclass
 
-    def __init__(self, document):
+    def __init__(self, document=None, **kwargs):
         # Default all fields to None
         defaults = {field.field_name: None for field in self._meta.fields.values()}
         super(Document, self).__init__(defaults)
@@ -431,10 +436,15 @@ class Document(dict):
         self.doc_type = self.__class__.__name__
 
         # Init fields with document data
-        for name, value in document.iteritems():
-            field = self._meta.get_field(name)
-            if field:
-                self[field.field_name] = field.parse(value)
+        self._set_fields(document)
+        self._set_fields(kwargs)
+
+    def _set_fields(self, data):
+        if data:
+            for name, value in data.iteritems():
+                field = self._meta.get_field(name)
+                if field:
+                    self[field.field_name] = field.parse(value)
 
     def __getattr__(self, key):
         field = self._meta.all.get(key)

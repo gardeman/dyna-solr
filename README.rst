@@ -25,6 +25,14 @@ Documents
         genre = CharField()
         pub_date = DateField()
 
+Index
+-----
+
+.. code:: python
+
+    book = Book(title='Dynamic Solr', author='Jonas')
+    Book.docs.add(book)
+
 Query
 -----
 

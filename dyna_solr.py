@@ -3,7 +3,8 @@ import pysolr
 import sys
 from abc import ABCMeta
 from datetime import datetime
-
+from dateutil.parser import parse as parse_datetime
+from dateutil.tz import tzlocal, tzutc
 
 VERSION = (0,0,1)
 __version__ = '.'.join([str(i) for i in VERSION])
@@ -269,15 +270,18 @@ class Query(dict):
 
         return clone
 
-    def search(self, q=None):
+    def search(self, q=None, operator=AND):
         """
         Optionally set/override q parameter and triggers index search
         """
-        clone = self
-        if q:
-            clone = self._clone()
+        clone = self._clone()
+
+        if clone.q:
+            clone['q'] = '(%s)%s(%s)' % (clone.q, operator, q)
+        else:
             clone['q'] = q
-        return clone._select()
+
+        return clone
 
     def all(self):
         clone = self._clone()
@@ -347,7 +351,7 @@ class DateField(Field):
 
     def parse(self, value):
         if isinstance(value, basestring):
-            return datetime.strptime(value, '%Y-%m-%dT%H:%M:%SZ')
+            return parse_datetime(value).replace(tzinfo=tzutc())
         else:
             return super(DateField, self).parse(value)
 
@@ -436,6 +440,7 @@ class Document(dict):
         self.doc_type = self.__class__.__name__
 
         # Init fields with document data
+        self.raw = {}
         self._set_fields(document)
         self._set_fields(kwargs)
 
@@ -444,6 +449,7 @@ class Document(dict):
             for name, value in data.iteritems():
                 field = self._meta.get_field(name)
                 if field:
+                    self.raw[field.field_name] = value
                     self[field.field_name] = field.parse(value)
 
     def __getattr__(self, key):
@@ -466,3 +472,13 @@ class Document(dict):
     @classmethod
     def field(cls, name):
         return cls._meta.get_field(name)
+
+    def _json_value(self, field):
+        value = self[field]
+        if isinstance(value, datetime):
+            return self.raw[field]
+        else:
+            return value
+
+    def jsonify(self):
+        return {self._meta.get_field(field).name: self._json_value(field) for field in self}

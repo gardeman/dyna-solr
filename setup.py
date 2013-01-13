@@ -7,5 +7,8 @@ setup(
     name             = name,
     version          = __import__(name).__version__,
     packages         = find_packages(exclude=['_*']),
-    #install_requires = ['?'],
+    install_requires = [
+        'pysolr==2.1.0-beta',
+        'python-dateutil==2.1'
+    ],
 )

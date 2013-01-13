@@ -185,12 +185,15 @@ class Query(dict):
         return self.filter_and(**kwargs)
 
     def filter_and(self, **kwargs):
-        return self._filter(AND, **kwargs)
+        return self._extend_query(AND, **kwargs)
 
     def filter_or(self, **kwargs):
-        return self._filter(OR, **kwargs)
+        return self._extend_query(OR, **kwargs)
 
-    def _filter(self, operator, **kwargs):
+    def exclude(self, **kwargs):
+        return self._extend_query(AND, negate=True, **kwargs)
+
+    def _extend_query(self, operator, negate=False, **kwargs):
         clone = self._clone()
         query = clone.q
 
@@ -198,10 +201,13 @@ class Query(dict):
             query = '(%s)%s' % (query, operator)
 
         filter_fields = []
+        cond_format = '-%s:%s' if negate else '%s:%s'
         for key, value in kwargs.iteritems():
             if ' ' in value:
                 value = '"%s"' % value
-            filter_fields.append('%s:%s' % (self._get_field(key).field_name, value))
+            field = self._get_field(key)
+            field_name = field.field_name if field else key
+            filter_fields.append(cond_format % (field_name, value or '""'))
 
         filter_fields = operator.join(filter_fields)
         if query:
@@ -446,10 +452,11 @@ class Document(dict):
 
     def _set_fields(self, data):
         if data:
+            self.raw.update(data)
             for name, value in data.iteritems():
                 field = self._meta.get_field(name)
                 if field:
-                    self.raw[field.field_name] = value
+#                    self.raw[field.field_name] = value
                     self[field.field_name] = field.parse(value)
 
     def __getattr__(self, key):
@@ -482,3 +489,6 @@ class Document(dict):
 
     def jsonify(self):
         return {self._meta.get_field(field).name: self._json_value(field) for field in self}
+
+    def save(self):
+        solr.index.add([self])

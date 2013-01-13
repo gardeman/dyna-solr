@@ -1,11 +1,9 @@
 #!/usr/bin/env python
 from setuptools import setup, find_packages
 
-name = 'dyna_solr'
-
 setup(
-    name             = name,
-    version          = __import__(name).__version__,
+    name             = 'dyna_solr',
+    version          = '0.0.2',
     packages         = find_packages(exclude=['_*']),
     install_requires = [
         'pysolr==2.1.0-beta',

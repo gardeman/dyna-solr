@@ -6,7 +6,7 @@ from datetime import datetime
 from dateutil.parser import parse as parse_datetime
 from dateutil.tz import tzlocal, tzutc
 
-VERSION = (0,0,1)
+VERSION = (0,0,2)
 __version__ = '.'.join([str(i) for i in VERSION])
 LOG = logging.getLogger(__name__)
 

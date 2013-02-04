@@ -4,7 +4,7 @@ import sys
 from abc import ABCMeta
 from datetime import datetime
 from dateutil.parser import parse as parse_datetime
-from dateutil.tz import tzlocal, tzutc
+from dateutil.tz import tzutc
 
 VERSION = (0,0,2)
 __version__ = '.'.join([str(i) for i in VERSION])
@@ -398,7 +398,7 @@ class DocumentType(ABCMeta):
 
         # Fetch fields from parents
         fields = dict()
-        for clazz in mro:  # Reversed super classes, except dict and object
+        for clazz in filter(lambda c: hasattr(c, '_meta'), mro):  # Reversed super classes, except dict and object
             fields.update(clazz._meta.fields)
 
         # Fetch class fields

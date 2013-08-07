@@ -109,6 +109,10 @@ class Query(dict):
         clone.facet_fields = self.facet_fields
         return clone
 
+    def delete(self, id=None, **kwargs):
+        clone = self._extend_query(AND, **kwargs)
+        solr.index.delete(id=id, q=clone['q'] or None)
+
     def _select(self):
         # TODO: add filter query for doc type
 
@@ -318,19 +322,23 @@ class Field(object):
         's': unicode,
         't': unicode,
         'dt': datetime,
+        'b': bool
     }
 
-    dynamic_suffix = None
+    _dynamic_suffix = None
 
     def __init__(self, type=None, dynamic=True):
         if dynamic:
-            self.type = self._dynamic_types[self.dynamic_suffix]
+            self.type = self._dynamic_types[self._dynamic_suffix]
         elif type:
             self.type = type
         self.dynamic = dynamic
 
     def __repr__(self):
         return '%s(%s)' % (self.__class__.__name__, self.name)
+
+    def get_dynamic_suffix(self):
+        return self._dynamic_suffix
 
     def parse(self, value):
         return value
@@ -343,17 +351,32 @@ class Field(object):
             return self.name
 
 
-class IntegerField(Field):
-    dynamic_suffix = 'i'
+class MultivaluedField(Field):
 
-class CharField(Field):
-    dynamic_suffix = 's'
+    multivalued = False
 
-class TextField(Field):
-    dynamic_suffix = 't'
+    def __init__(self, type=None, dynamic=True, multivalued=False):
+        self.multivalued = multivalued
+        super(MultivaluedField, self).__init__(type, dynamic)
 
-class DateField(Field):
-    dynamic_suffix = 'dt'
+    def get_dynamic_suffix(self):
+        return super(MultivaluedField, self).get_dynamic_suffix() + 's'
+
+
+class IntegerField(MultivaluedField):
+    _dynamic_suffix = 'i'
+
+
+class CharField(MultivaluedField):
+    _dynamic_suffix = 's'
+
+
+class TextField(MultivaluedField):
+    _dynamic_suffix = 't'
+
+
+class DateField(MultivaluedField):
+    _dynamic_suffix = 'dt'
 
     def parse(self, value):
         if isinstance(value, basestring):
@@ -361,6 +384,11 @@ class DateField(Field):
         else:
             return super(DateField, self).parse(value)
 
+class BoolField(Field):
+    _dynamic_suffix = 'b'
+
+    def parse(self, value):
+        return 1 if bool(value) else 0
 
 class DocumentMeta(object):
 
@@ -371,7 +399,7 @@ class DocumentMeta(object):
         for name, field in fields.iteritems():
             field.name = name
             if field.dynamic:
-                field.dynamic_name = u'_'.join((name, field.dynamic_suffix))
+                field.dynamic_name = u'_'.join((name, field.get_dynamic_suffix()))
                 self.dynamic_fields[field.dynamic_name] = field
 
         self.all = dict(self.fields)

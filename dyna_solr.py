@@ -360,9 +360,12 @@ class MultivaluedField(Field):
         super(MultivaluedField, self).__init__(type, dynamic)
 
     def get_dynamic_suffix(self):
-        return super(MultivaluedField, self).get_dynamic_suffix() + 's'
+        suffix = super(MultivaluedField, self).get_dynamic_suffix()
+        if self.multivalued:
+            suffix += 's'
+        return suffix
 
-
+    
 class IntegerField(MultivaluedField):
     _dynamic_suffix = 'i'
 

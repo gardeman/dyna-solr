@@ -114,9 +114,9 @@ class Query(dict):
         solr.index.delete(id=id, q=clone['q'] or None)
 
     def _select(self):
-        # TODO: add filter query for doc type
 
-        result = solr.index.search(self.pop('q') or '*:*', **self)
+        q = self.filter(doc_type_s=self.document_class.__name__) if self.document_class else self
+        result = solr.index.search(q.pop('q') or '*:*', **q)
 
         if 'group' in self:
             # Build result.docs from simple or grouped groups
@@ -207,7 +207,7 @@ class Query(dict):
         filter_fields = []
         cond_format = '-%s:%s' if negate else '%s:%s'
         for key, value in kwargs.iteritems():
-            if ' ' in value:
+            if ' ' in value and not(value[0] == '[' and value[-1] == ']'):
                 value = '"%s"' % value
             field = self._get_field(key)
             field_name = field.field_name if field else key
@@ -365,7 +365,7 @@ class MultivaluedField(Field):
             suffix += 's'
         return suffix
 
-    
+
 class IntegerField(MultivaluedField):
     _dynamic_suffix = 'i'
 

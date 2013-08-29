@@ -2,7 +2,7 @@ import logging
 import pysolr
 import sys
 from abc import ABCMeta
-from datetime import datetime
+from datetime import datetime, date, timedelta
 from dateutil.parser import parse as parse_datetime
 from dateutil.tz import tzutc
 
@@ -156,10 +156,16 @@ class Query(dict):
     def _get_field(self, field):
         if isinstance(field, Field):
             return field
-        elif isinstance(field, basestring) and self.document_class:
-            return self.document_class.field(field)
-        else:
-            raise Exception('Unknown field %s for Query, no Document reference' % field)
+        elif isinstance(field, basestring):
+            if self.document_class:
+                return self.document_class.field(field)
+            else:
+                document_name, _, field_name = field.partition('.')
+                if field_name:
+                    return DocumentType.get(document_name).field(field_name)
+
+        #else:
+        #    raise Exception('Unknown field %s for Query, no Document reference' % field)
 
     def _sort_syntax(self, *fields):
         for field in fields:
@@ -238,10 +244,44 @@ class Query(dict):
         if sort:
             clone['facet.sort'] = 1
 
+        """
         for k, v in kwargs.iteritems():
-            clone['facet.%s' % k] = v
-
+            if isinstance(v, dict):
+                for k2, v2 in v.iteritems():
+                    clone['facet.%s.%s' % (k, k2)] = v2
+            else:
+                clone['facet.%s' % k] = v
+        """
+        self._handle_facet_kwargs(clone, kwargs)
+        
         return clone
+
+    def _handle_facet_kwargs(self, query, kwargs, prefix='facet'):
+        for k, v in kwargs.iteritems():
+            if isinstance(v, dict):
+                self._handle_facet_kwargs(query, v, '.'.join((prefix, k)))
+            else:
+                query['.'.join((prefix, k))] = v
+
+    def facet_date(self, field, start_date, end_date, gap):
+        if isinstance(start_date, (datetime, date)):
+            start_date = '%sZ' % start_date.astimezone(tzutc()).isoformat()
+        if isinstance(end_date, (datetime, date)):
+            end_date = '%sZ' % end_date.astimezone(tzutc()).isoformat()
+        if isinstance(gap, timedelta):
+            raise NotImplementedError
+
+        field_instance = self._get_field(field)
+        if not field_instance:
+            raise Exception('Unknown field %s for Query, no Document reference' % field)
+        return self.facet(field_instance,
+                          f={field_instance.field_name: {
+                          'date': {
+                              'gap': gap,
+                              'start': start_date,
+                              'end': end_date
+                          }
+                          }})
 
     def group_by(self, *fields, **kwargs):
         if not fields:

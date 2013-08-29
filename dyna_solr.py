@@ -253,7 +253,7 @@ class Query(dict):
                 clone['facet.%s' % k] = v
         """
         self._handle_facet_kwargs(clone, kwargs)
-        
+
         return clone
 
     def _handle_facet_kwargs(self, query, kwargs, prefix='facet'):
@@ -263,7 +263,7 @@ class Query(dict):
             else:
                 query['.'.join((prefix, k))] = v
 
-    def facet_date(self, field, start_date, end_date, gap):
+    def facet_date(self, field, start_date, end_date, gap='+1DAY'):
         if isinstance(start_date, (datetime, date)):
             start_date = '%sZ' % start_date.astimezone(tzutc()).isoformat()
         if isinstance(end_date, (datetime, date)):

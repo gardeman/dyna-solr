@@ -144,19 +144,23 @@ class Query(dict):
 
         # Prettify facets
         if 'facet' in self:
-            facets = result.facets.get('facet_fields', {})
-            result.facets = {}
-            for field_name, counts in facets.iteritems():
-                name = self.facet_fields[field_name].name
-                facets = [(facet, count) for facet, count in zip(counts[::2], counts[1::2])]
-                result.facets[name] = facets
+            facet_fields = result.facets.get('facet_fields', {})
+            facet_dates = result.facets.get('facet_dates', {})
 
-            date_facets = result.facets.get('facet_dates', {})
-            result.facet_dates = {}
-            for field_name, counts in date_facets.iteritems():
+            result.facets = {}
+
+            for field_name, counts in facet_fields.iteritems():
                 name = self.facet_fields[field_name].name
-                facets = [(facet, count) for facet, count in zip(counts[::2], counts[1::2])]
-                result.facet_dates[name] = facets
+                facet_count = [(facet, count) for facet, count in zip(counts[::2], counts[1::2])]
+                result.facets[name] = facet_count
+
+            result.facet_dates = {}
+
+            for field_name, counts in facet_dates.iteritems():
+                name = self.facet_fields[field_name].name
+                for unwanted_data in ('gap', 'start', 'end'):
+                    counts.pop(unwanted_data)
+                result.facet_dates[name] = counts
 
         return result
 

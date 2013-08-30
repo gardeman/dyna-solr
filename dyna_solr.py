@@ -258,8 +258,11 @@ class Query(dict):
 
     def _handle_facet_kwargs(self, query, kwargs, prefix='facet'):
         for k, v in kwargs.iteritems():
+            key = '.'.join((prefix, k))
             if isinstance(v, dict):
-                self._handle_facet_kwargs(query, v, '.'.join((prefix, k)))
+                if k == 'f':
+                    key = key[6:]
+                self._handle_facet_kwargs(query, v, key)
             else:
                 query['.'.join((prefix, k))] = v
 

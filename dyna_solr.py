@@ -275,6 +275,7 @@ class Query(dict):
         if not field_instance:
             raise Exception('Unknown field %s for Query, no Document reference' % field)
         return self.facet(field_instance,
+                          date=field_instance.field_name,
                           f={field_instance.field_name: {
                           'date': {
                               'gap': gap,

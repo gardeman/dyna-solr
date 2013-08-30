@@ -280,11 +280,13 @@ class Query(dict):
         return self.facet(field_instance,
                           date=field_instance.field_name,
                           f={field_instance.field_name: {
-                          'date': {
-                              'gap': gap,
-                              'start': start_date,
-                              'end': end_date
-                          }
+                              'facet': {
+                                  'date': {
+                                      'gap': gap,
+                                      'start': start_date,
+                                      'end': end_date
+                                  }
+                              }
                           }})
 
     def group_by(self, *fields, **kwargs):

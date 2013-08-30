@@ -151,6 +151,13 @@ class Query(dict):
                 facets = [(facet, count) for facet, count in zip(counts[::2], counts[1::2])]
                 result.facets[name] = facets
 
+            date_facets = result.facets.get('facet_dates', {})
+            result.facet_dates = {}
+            for field_name, counts in date_facets.iteritems():
+                name = self.facet_fields[field_name].name
+                facets = [(facet, count) for facet, count in zip(counts[::2], counts[1::2])]
+                result.facet_dates[name] = facets
+
         return result
 
     def _get_field(self, field):

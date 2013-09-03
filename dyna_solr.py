@@ -64,9 +64,9 @@ solr = ConfigurableSolr()
 
 class Query(dict):
 
-    def __init__(self, document_class=None, **kwargs):
+    def __init__(self, *document_classes, **kwargs):
         super(Query, self).__init__(**kwargs)
-        self.document_class = document_class
+        self.document_classes = document_classes
         self.facet_fields = {}
 
     def __getattr__(self, key):
@@ -105,7 +105,7 @@ class Query(dict):
         return clone._select()
 
     def _clone(self):
-        clone = Query(self.document_class, **self)
+        clone = Query(*self.document_classes, **self)
         clone.facet_fields = self.facet_fields
         return clone
 
@@ -114,8 +114,8 @@ class Query(dict):
         solr.index.delete(id=id, q=clone['q'] or None)
 
     def _select(self):
-
-        q = self.filter(doc_type_s=self.document_class.__name__) if self.document_class else self
+        doc_filter = '( %s )' % ' OR '.join(dc.__name__ for dc in self.document_classes)
+        q = self.filter(doc_type_s=doc_filter) if self.document_classes else self
         result = solr.index.search(q.pop('q') or '*:*', **q)
 
         if 'group' in self:
@@ -173,8 +173,11 @@ class Query(dict):
         if isinstance(field, Field):
             return field
         elif isinstance(field, basestring):
-            if self.document_class:
-                return self.document_class.field(field)
+            if self.document_classes:
+                if len(self.document_classes) == 1:
+                    return self.document_classes[0].field(field)
+                else:
+                    pass  # TODO: How to impl. this?
             else:
                 document_name, _, field_name = field.partition('.')
                 if field_name:
@@ -362,7 +365,9 @@ class Query(dict):
         return clone
 
     def add(self, *data):
-        Doc = self.document_class
+        if len(self.document_classes) != 1:
+            raise ValueError('Add is only possible on queries bound to one document type')
+        Doc = self.document_classes[0]
         docs = []
         for d in data:
             if isinstance(d, dict):

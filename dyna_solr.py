@@ -158,9 +158,14 @@ class Query(dict):
 
             for field_name, counts in facet_dates.iteritems():
                 name = self.facet_fields[field_name].name
-                for unwanted_data in ('gap', 'start', 'end'):
+                gap = counts.pop('gap')
+                for unwanted_data in ('start', 'end'):
                     counts.pop(unwanted_data)
-                result.facet_dates[name] = counts
+                if gap == '+1DAY':
+                    result.facet_dates[name] = {datetime.strptime(date_string, '%Y-%m-%dT%H:%M:%SZ').date(): count
+                                                for date_string, count in counts.iteritems()}
+                else:
+                    raise NotImplementedError
 
         return result
 
@@ -224,7 +229,7 @@ class Query(dict):
         filter_fields = []
         cond_format = '-%s:%s' if negate else '%s:%s'
         for key, value in kwargs.iteritems():
-            if ' ' in value and not(value[0] == '[' and value[-1] == ']'):
+            if ' ' in value and not(value[0] in '[(' and value[-1] in ')]'):
                 value = '"%s"' % value
             field = self._get_field(key)
             field_name = field.field_name if field else key
@@ -263,6 +268,7 @@ class Query(dict):
             else:
                 clone['facet.%s' % k] = v
         """
+        kwargs['query'] = self.q
         self._handle_facet_kwargs(clone, kwargs)
 
         return clone
@@ -277,7 +283,7 @@ class Query(dict):
             else:
                 query['.'.join((prefix, k))] = v
 
-    def facet_date(self, field, start_date, end_date, gap='+1DAY'):
+    def facet_date(self, field, start_date, end_date, gap='+1DAY', **kwargs):
         if isinstance(start_date, (datetime, date)):
             start_date = '%sZ' % start_date.astimezone(tzutc()).isoformat()
         if isinstance(end_date, (datetime, date)):
@@ -298,7 +304,7 @@ class Query(dict):
                                       'end': end_date
                                   }
                               }
-                          }})
+                          }}, **kwargs)
 
     def group_by(self, *fields, **kwargs):
         if not fields:

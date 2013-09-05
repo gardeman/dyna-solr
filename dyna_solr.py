@@ -318,7 +318,8 @@ class Query(dict):
 
         group_field = clone.get('group.field', list)
         for field in fields:
-            group_field.append(self._get_field(field).field_name)
+            doc_field = self._get_field(field)
+            group_field.append(doc_field and doc_field.name or field)
 
         sort_fields = kwargs.pop('sort', None)
         if sort_fields:
@@ -331,8 +332,8 @@ class Query(dict):
         if facet:
             clone['group.facet'] = 'true'
 
-        format = kwargs.pop('format', 'simple')
-        clone['group.format'] = format
+        clone['group.format'] = kwargs.pop('format', 'simple')
+        clone['group.limit'] = kwargs.pop('limit', 1)
 
         return clone
 

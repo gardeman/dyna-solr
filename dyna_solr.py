@@ -429,7 +429,6 @@ class Field(object):
 
     _dynamic_types = {
         'i': int,
-        'f': float,
         's': unicode,
         't': unicode,
         'dt': datetime,
@@ -481,8 +480,6 @@ class MultivaluedField(Field):
 class IntegerField(MultivaluedField):
     _dynamic_suffix = 'i'
 
-class FloatField(MultivaluedField):
-    _dynamic_suffix = 'f'
 
 class FloatField(MultivaluedField):
     _dynamic_suffix = 'f'

@@ -391,7 +391,8 @@ class Field(object):
         's': unicode,
         't': unicode,
         'dt': datetime,
-        'b': bool
+        'b': bool,
+        'f': float
     }
 
     _dynamic_suffix = None
@@ -438,6 +439,8 @@ class MultivaluedField(Field):
 class IntegerField(MultivaluedField):
     _dynamic_suffix = 'i'
 
+class FloatField(MultivaluedField):
+    _dynamic_suffix = 'f'
 
 class CharField(MultivaluedField):
     _dynamic_suffix = 's'

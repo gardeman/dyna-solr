@@ -114,8 +114,12 @@ class Query(dict):
         solr.index.delete(id=id, q=clone['q'] or None)
 
     def _select(self):
-        doc_filter = '( %s )' % ' OR '.join(dc.__name__ for dc in self.document_classes)
-        q = self.filter(doc_type_s=doc_filter) if self.document_classes else self
+        if self.document_classes:
+            doc_filter = '( %s )' % ' OR '.join(dc.__name__ for dc in self.document_classes)
+            q = self.filter(doc_type_s=doc_filter)
+        else:
+            q = self
+
         result = solr.index.search(q.pop('q') or '*:*', **q)
 
         if 'group' in self:
@@ -162,8 +166,17 @@ class Query(dict):
                 for unwanted_data in ('start', 'end'):
                     counts.pop(unwanted_data)
                 if gap == '+1DAY':
-                    result.facet_dates[name] = {datetime.strptime(date_string, '%Y-%m-%dT%H:%M:%SZ').date(): count
-                                                for date_string, count in counts.iteritems()}
+                    tz = q.pop('facet.tz')
+                    date_count = dict()
+                    for date_string, count in counts.iteritems():
+                        date = datetime.strptime(
+                            date_string, '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=tzutc()).astimezone(tz)
+                        if hasattr(tz, 'normalize'):
+                            # available for pytz time zones
+                            date = tz.normalize(date)
+                        date = date.date()
+                        date_count.update({date: count})
+                    result.facet_dates[name] = date_count
                 else:
                     raise NotImplementedError
 
@@ -192,7 +205,11 @@ class Query(dict):
             if field.startswith('-'):
                 field = field[1:]
                 order = 'desc'
-            field_name = self._get_field(field).field_name
+            var = self._get_field(field)
+            if var:
+                field_name = var.field_name
+            else:
+                field_name = field
             yield ' '.join((field_name, order))
 
     @property
@@ -227,8 +244,26 @@ class Query(dict):
         query = clone.q
 
         if query:
-            query = '(%s)%s' % (query, operator)
+            if query.startswith('{!join'):
+                join, query = query.split('}', 1)
+                query = '%(join)s}( %(query)s ) %(operator)s' % dict(
+                    join = join,
+                    query = query,
+                    operator=operator
+                )
+            else:
+                query = '(%s)%s' % (query, operator)
 
+        filter_fields = self._build_query(operator, negate=negate, **kwargs)
+
+        if query and not negate:
+            filter_fields = '(%s)' % filter_fields
+
+        clone['q'] = query + filter_fields
+
+        return clone
+
+    def _build_query(self, operator, negate=False, **kwargs):
         filter_fields = []
         cond_format = '-%s:%s' if negate else '%s:%s'
         for key, value in kwargs.iteritems():
@@ -238,13 +273,19 @@ class Query(dict):
             field_name = field.field_name if field else key
             filter_fields.append(cond_format % (field_name, value or '""'))
 
-        filter_fields = operator.join(filter_fields)
-        if query:
-            filter_fields = '(%s)' % filter_fields
+        return operator.join(filter_fields)
 
-        clone['q'] = query + filter_fields
 
+    def join(self, from_field, to_field, **filter_query):
+        clone = self._clone()
+        query = '{!join from=%(from_field)s to=%(to_field)s}%(query)s' % {
+            'from_field': from_field,
+            'to_field': to_field,
+            'query': clone.q or '*:*'}
+        clone['q'] = query
+        clone['fq'] = self._build_query(AND, **filter_query)
         return clone
+
 
     def facet(self, *fields, **kwargs):
         if not fields:
@@ -388,6 +429,7 @@ class Field(object):
 
     _dynamic_types = {
         'i': int,
+        'f': float,
         's': unicode,
         't': unicode,
         'dt': datetime,
@@ -441,6 +483,10 @@ class IntegerField(MultivaluedField):
 
 class FloatField(MultivaluedField):
     _dynamic_suffix = 'f'
+
+class FloatField(MultivaluedField):
+    _dynamic_suffix = 'f'
+
 
 class CharField(MultivaluedField):
     _dynamic_suffix = 's'

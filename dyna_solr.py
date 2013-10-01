@@ -14,6 +14,8 @@ LOG = logging.getLogger(__name__)
 AND = ' AND '
 OR = ' OR '
 
+MAX_INTEGER = 2147483647
+
 
 class Config(dict):
 
@@ -99,7 +101,7 @@ class Query(dict):
         if i > 0:
             clone['start'] = i
 
-        if j != sys.maxint:
+        if j <= MAX_INTEGER:
             clone['rows'] = j
 
         return clone._select()
@@ -112,6 +114,14 @@ class Query(dict):
     def delete(self, id=None, **kwargs):
         clone = self._extend_query(AND, **kwargs)
         solr.index.delete(id=id, q=clone['q'] or None)
+
+    def update(self, **kwargs):
+        docs = []
+        for doc in self[:MAX_INTEGER]:
+            doc.update(kwargs)
+            docs.append(doc)
+        solr.index.add(docs)
+        return len(docs)
 
     def _select(self):
         if self.document_classes:
@@ -267,7 +277,7 @@ class Query(dict):
         filter_fields = []
         cond_format = '-%s:%s' if negate else '%s:%s'
         for key, value in kwargs.iteritems():
-            if ' ' in value and not(value[0] in '[(' and value[-1] in ')]'):
+            if isinstance(value, basestring) and ' ' in value and not(value[0] in '[(' and value[-1] in ')]'):
                 value = '"%s"' % value
             field = self._get_field(key)
             field_name = field.field_name if field else key
